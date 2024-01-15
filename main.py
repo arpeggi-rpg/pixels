@@ -12,8 +12,11 @@ pygame.display.flip()
 
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
-TINT = numpy.array([50, 255, 50])
+TINT = numpy.array([100, 100, 100])
 sprite_list = pygame.sprite.Group()
+highlight_group = pygame.sprite.GroupSingle()
+active_px = None
+pixel_active = False
 
 
 class Sprite(pygame.sprite.Sprite):
@@ -22,8 +25,17 @@ class Sprite(pygame.sprite.Sprite):
         self.image = pygame.Surface([width, height])
         pygame.draw.rect(self.image, colour, pygame.Rect(0, 0, width, height))
         self.rect = self.image.get_rect()
-
         self.colour = colour
+        self.is_active = False
+
+    def update(self, event_list=pygame.event.get()):
+        self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
+        if self.is_active:
+            print(self.is_active)
+            for ev in event_list:
+                if ev == pygame.MOUSEBUTTONUP:
+                    self.colour = BLUE
+                    print('click!')
 
 
 pixel = [[x for x in range(64)] for y in range(64)]
@@ -41,26 +53,28 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    try:
-        if not highlight.rect.collidepoint(pygame.mouse.get_pos()):
-            sprite_list.remove(highlight)
-    except NameError:
-        pass
-
     for x in pixel:
         for sp in x:
-            if sp.rect.collidepoint(pygame.mouse.get_pos()):
-                highlight_colour = sp.colour + TINT
-                for i, v in enumerate(highlight_colour):
-                    if v > 255:
-                        highlight_colour[i] = 255
-                highlight = Sprite(highlight_colour, 8, 8)
-                highlight.rect.x = sp.rect.x
-                highlight.rect.y = sp.rect.y
-                sprite_list.add(highlight)
+            if sp.is_active:
+                active_px = sp
+                pixel_active = True
+    if not pixel_active:
+        active_px = None
+
+    if active_px:
+        highlight_colour = active_px.colour + TINT
+        for i, v in enumerate(highlight_colour):
+            if v > 255:
+                highlight_colour[i] = 255
+        highlight = Sprite(highlight_colour, 8, 8)
+        highlight.rect.x = active_px.rect.x
+        highlight.rect.y = active_px.rect.y
+        highlight_group.add(highlight)
 
     sprite_list.update()
+    highlight_group.update()
     sprite_list.draw(screen)
+    highlight_group.draw(screen)
 
     pygame.draw.rect(screen, (255, 255, 255), ((10, 10), (513, 513)), 1)
     for x in range(18, 522, 8):
