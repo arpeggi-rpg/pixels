@@ -1,3 +1,6 @@
+# add a grid too!
+# rewrite highlights as an object, also pixels grid - consistency
+
 import pygame
 import numpy
 from pygame.locals import *
@@ -26,7 +29,7 @@ class Brush:
 
 
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, colour, height, width):
+    def __init__(self, colour=(0, 0, 0, 0), height=0, width=0):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface([width, height])
         pygame.draw.rect(self.image, colour, pygame.Rect(0, 0, width, height))
@@ -36,6 +39,10 @@ class Sprite(pygame.sprite.Sprite):
         self.width = width
         self.is_active = False
         sprite_list.add(self)
+
+        if type(self) is Palette:
+            self._current_palette = DEFAULT_PALETTE
+            self._drawn_palette = [PaletteColour(DEFAULT_PALETTE[i], 30, 30) for i in range(7)]
 
     def _get_colour(self):
         return self._colour
@@ -55,9 +62,9 @@ class Sprite(pygame.sprite.Sprite):
 
 class Pixel(Sprite):
     def update(self):
-        pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
-        if self.is_active:
+        pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
                 self.colour = cur.current_colour
 
@@ -65,16 +72,12 @@ class Pixel(Sprite):
 class PaletteColour(Sprite):
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
-        self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
-        if self.is_active:
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
                 cur.current_colour = self.colour
 
 
 class Palette(Sprite):
-    def __init__(self):
-        self._current_palette = DEFAULT_PALETTE
-        self._drawn_palette = [PaletteColour(DEFAULT_PALETTE[i], 30, 30) for i in range(7)]
 
     def _get_palette(self):
         return self._current_palette
@@ -106,6 +109,7 @@ class Palette(Sprite):
             self.current_drawn[i].rect.x = 10 + (i * 30)
             self.current_drawn[i].rect.y = 532
 
+''' 
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
@@ -114,6 +118,8 @@ class Palette(Sprite):
             if pygame.mouse.get_pressed()[0]:
                 print('pressed')
                 cur.current_colour = self.colour
+'''
+
 
 pixels = [[x for x in range(64)] for y in range(64)]
 for x in range(64):
@@ -132,9 +138,11 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    '''
     for sp in sprite_list:
-        if sp.is_active:
-            active_px = sp
+        if type(sp) is Pixel:
+            if sp.is_active:
+                active_px = sp
 
     if active_px:
         highlight_colour = [0, 0, 0]
@@ -147,6 +155,7 @@ while running:
         highlight.rect.x = active_px.rect.x
         highlight.rect.y = active_px.rect.y
         highlight_group.add(highlight)
+    '''
 
     sprite_list.update()
     highlight_group.update()
