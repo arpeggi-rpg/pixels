@@ -19,7 +19,6 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 TINT = (100, 100, 100)
 sprite_list = pygame.sprite.Group()
-highlight_group = pygame.sprite.GroupSingle()
 active_px = None
 
 
@@ -63,10 +62,17 @@ class Sprite(pygame.sprite.Sprite):
 class Pixel(Sprite):
     def update(self):
         self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
+        if self.is_active:
+            highlight = Highlight()
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
                 self.colour = cur.current_colour
+
+
+class Highlight(Sprite):
+    def update(self):
+        pass
 
 
 class PaletteColour(Sprite):
@@ -158,9 +164,7 @@ while running:
     '''
 
     sprite_list.update()
-    highlight_group.update()
     sprite_list.draw(screen)
-    highlight_group.draw(screen)
 
     pygame.draw.rect(screen, (255, 255, 255), ((10, 10), (513, 513)), 1)
     for x in range(18, 522, 8):
