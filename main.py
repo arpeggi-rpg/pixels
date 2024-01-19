@@ -36,7 +36,6 @@ class Sprite(pygame.sprite.Sprite):
         self._colour = colour
         self.height = height
         self.width = width
-        self.is_active = False
         sprite_list.add(self)
 
         if type(self) is Palette:
@@ -60,19 +59,43 @@ class Sprite(pygame.sprite.Sprite):
 
 
 class Pixel(Sprite):
+    def __init__(self, colour=(0, 0, 0, 0), height=0, width=0):
+        super().__init__(colour, height, width)
+        self.is_active = False
+        self.highlight = None
+
     def update(self):
         self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
         if self.is_active:
-            highlight = Highlight()
+            if self.highlight is None:
+                self.highlight = Highlight(self.colour, 8, 8)
+                self.highlight.rect.x = self.rect.x
+                self.highlight.rect.y = self.rect.y
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
                 self.colour = cur.current_colour
+                self.highlight = None
 
 
 class Highlight(Sprite):
+    def __init__(self, colour=(0, 0, 0, 0), height=8, width=8):
+        super().__init__(colour, height, width)
+        self.hi_colour = list(self.colour)
+        self.ttl = None
+        for i, v in enumerate(self.hi_colour):
+            v += 100
+            if v > 255:
+                v = 255
+            self.hi_colour[i] = v
+        self.colour = self.hi_colour
+
     def update(self):
-        pass
+        pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
+        if not self.rect.collidepoint(pygame.mouse.get_pos()):
+            print('nope')
+            self.kill()
+
 
 
 class PaletteColour(Sprite):
@@ -134,9 +157,9 @@ for x in range(64):
         pixels[x][y].rect.x = 10 + (x * 8)
         pixels[x][y].rect.y = 10 + (y * 8)
 
-    cur = Brush()
-    pal = Palette()
-    pal.draw_palette()
+cur = Brush()
+pal = Palette()
+pal.draw_palette()
 running = True
 while running:
     clock.tick(60)
