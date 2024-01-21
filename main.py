@@ -3,6 +3,7 @@
 
 import pygame
 import numpy
+from tkinter.colorchooser import askcolor
 from pygame.locals import *
 
 pygame.init()
@@ -71,6 +72,8 @@ class Pixel(Sprite):
                 self.highlight = Highlight(self.colour, 8, 8)
                 self.highlight.rect.x = self.rect.x
                 self.highlight.rect.y = self.rect.y
+        else:
+            self.highlight = None
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
@@ -95,7 +98,6 @@ class Highlight(Sprite):
         if not self.rect.collidepoint(pygame.mouse.get_pos()):
             print('nope')
             self.kill()
-
 
 
 class PaletteColour(Sprite):
@@ -138,6 +140,7 @@ class Palette(Sprite):
             self.current_drawn[i].rect.x = 10 + (i * 30)
             self.current_drawn[i].rect.y = 532
 
+
 ''' 
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
@@ -167,24 +170,8 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    '''
-    for sp in sprite_list:
-        if type(sp) is Pixel:
-            if sp.is_active:
-                active_px = sp
-
-    if active_px:
-        highlight_colour = [0, 0, 0]
-        for i, v in enumerate(highlight_colour):
-            highlight_colour[i] = active_px.colour[i] + TINT[i]
-            v = highlight_colour[i]
-            if v > 255:
-                highlight_colour[i] = 255
-        highlight = Sprite(highlight_colour, 8, 8)
-        highlight.rect.x = active_px.rect.x
-        highlight.rect.y = active_px.rect.y
-        highlight_group.add(highlight)
-    '''
+    if pygame.mouse.get_pressed()[1]:
+        print(askcolor())
 
     sprite_list.update()
     sprite_list.draw(screen)
