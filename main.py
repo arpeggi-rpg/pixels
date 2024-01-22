@@ -9,8 +9,7 @@ from pygame.locals import *
 pygame.init()
 clock = pygame.time.Clock()
 BACKGROUND_COLOUR = (85, 85, 85)
-DEFAULT_PALETTE = numpy.array(([220, 20, 60], [255, 85, 10], [255, 190, 10], [35, 140, 35], [60, 135, 255],
-                              [50, 50, 205], [100, 0, 205]))
+DEFAULT_PALETTE = ((0, 0, 0),)
 screen = pygame.display.set_mode((532, 600))
 pygame.display.set_caption('Pixel Art')
 screen.fill(BACKGROUND_COLOUR)
@@ -25,7 +24,7 @@ active_px = None
 
 class Brush:
     def __init__(self):
-        self.current_colour = pygame.Color((0, 0, 255))
+        self.current_colour = pygame.Color((0, 0, 0))
 
 
 class Sprite(pygame.sprite.Sprite):
@@ -41,7 +40,7 @@ class Sprite(pygame.sprite.Sprite):
 
         if type(self) is Palette:
             self._current_palette = DEFAULT_PALETTE
-            self._drawn_palette = [PaletteColour(DEFAULT_PALETTE[i], 30, 30) for i in range(7)]
+            self._drawn_palette = [PaletteColour(DEFAULT_PALETTE[i], 30, 30) for i in range(len(self._current_palette))]
 
     def _get_colour(self):
         return self._colour
@@ -96,7 +95,6 @@ class Highlight(Sprite):
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if not self.rect.collidepoint(pygame.mouse.get_pos()):
-            print('nope')
             self.kill()
 
 
@@ -109,7 +107,6 @@ class PaletteColour(Sprite):
 
 
 class Palette(Sprite):
-
     def _get_palette(self):
         return self._current_palette
 
@@ -141,16 +138,32 @@ class Palette(Sprite):
             self.current_drawn[i].rect.y = 532
 
 
-''' 
+class PalTool(Sprite):
+    def __init__(self, colour=(0, 0, 0, 0), height=30, width=30):
+        super().__init__(colour, height, width)
+        palicon = pygame.image.load('palicon.png')
+        palicon.convert_alpha()
+        self.image = palicon
+        self.rect.x = 10
+        self.rect.y = 562
+
     def update(self):
-        pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
-        self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
-        if self.is_active:
-            print('active')
+        picked_colour = (0, 0, 0)
+        screen.blit(self.image, self.rect)
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
-                print('pressed')
-                cur.current_colour = self.colour
-'''
+                picked_colour = askcolor()[0]
+                new_pal = list(pal.current_palette)
+                new_pal.insert(0, picked_colour)
+                pal.current_palette = tuple(new_pal)
+        elif pygame.key.get_pressed()[K_p]:
+            picked_colour = askcolor()[0]
+            new_pal = list(pal.current_palette)
+            new_pal.insert(0, picked_colour)
+            pal.current_palette = tuple(new_pal)
+        if pygame.key.get_pressed()[K_d]:
+            print(pal.current_palette)
+
 
 
 pixels = [[x for x in range(64)] for y in range(64)]
@@ -163,15 +176,13 @@ for x in range(64):
 cur = Brush()
 pal = Palette()
 pal.draw_palette()
+PalTool()
 running = True
 while running:
     clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
-    if pygame.mouse.get_pressed()[1]:
-        print(askcolor())
 
     sprite_list.update()
     sprite_list.draw(screen)
