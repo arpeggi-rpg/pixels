@@ -101,13 +101,15 @@ class PaletteColour(Sprite):
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if self.rect.collidepoint(pygame.mouse.get_pos()):
-            if pygame.mouse.get_pressed()[0]:
-                cur.current_colour = self.colour
-                new_pal = list(pal.current_palette)
-                new_pal.remove(self.colour)
-                new_pal.insert(0, self.colour)
-                pal.current_palette = tuple(new_pal)
-                pal.draw_palette()
+            for ev in events:
+                if ev.type == pygame.MOUSEBUTTONDOWN:
+                    cur.current_colour = self.colour
+                    new_pal = list(pal.current_palette)
+                    new_pal.remove(self.colour)
+                    new_pal.insert(0, self.colour)
+                    pal.current_palette = tuple(new_pal)
+                    pal.draw_palette()
+
 
 
 class Palette(Sprite):
@@ -148,19 +150,20 @@ class PalTool(Sprite):
         screen.blit(self.image, self.rect)
         if self.rect.collidepoint(pygame.mouse.get_pos()) or pygame.key.get_pressed()[K_p]:
             if pygame.mouse.get_pressed()[0] or pygame.key.get_pressed()[K_p]:
-                picked_colour = askcolor(initialcolor=(128, 128, 128), title="Colour Chooser")[0]
+                picked_colour = askcolor(initialcolor=pal.current_palette[0], title="Colour Chooser")[0]
                 new_pal = list(pal.current_palette)
                 if picked_colour in new_pal:
-                    return
-                new_pal.insert(0, picked_colour)
+                    new_pal.remove(picked_colour)
+                    new_pal.insert(0, picked_colour)
+                else:
+                    new_pal.insert(0, picked_colour)
                 if len(new_pal) > 16:
-                    new_pal.remove[-1]
+                    new_pal.pop(-1)
                 pal.current_palette = tuple(new_pal)
                 pal.draw_palette()
                 cur.current_colour = picked_colour
         if pygame.key.get_pressed()[K_d]:
             print(pal.current_palette)
-
 
 
 pixels = [[x for x in range(64)] for y in range(64)]
@@ -177,7 +180,8 @@ PalTool()
 running = True
 while running:
     clock.tick(60)
-    for event in pygame.event.get():
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.QUIT:
             running = False
 
@@ -194,5 +198,4 @@ while running:
         pygame.draw.line(screen, (255, 255, 255), (x, 532), (x, 591))
     pygame.draw.line(screen, (255, 255, 255), (10, 562), (521, 562))
 
-    pygame.event.pump()
     pygame.display.update()
