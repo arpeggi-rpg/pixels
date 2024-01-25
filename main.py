@@ -2,8 +2,10 @@
 # rewrite highlights as an object, also pixels grid - consistency
 
 import pygame
-import numpy
 from tkinter.colorchooser import askcolor
+import tkinter.filedialog as fd
+import numpy as np
+import pickle
 from pygame.locals import *
 
 pygame.init()
@@ -55,6 +57,56 @@ class Sprite(pygame.sprite.Sprite):
 
     def update(self):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
+
+
+class PixelArt():
+    def __init__(self):
+        self.pixels = [[x for x in range(64)] for y in range(64)]
+        for x in range(64):
+            for y in range(64):
+                self.pixels[y][x] = Pixel(RED, 8, 8)
+                self.pixels[y][x].rect.x = 10 + (x * 8)
+                self.pixels[y][x].rect.y = 10 + (y * 8)
+
+    def pixel_art_array(self, type):
+        if type == 'array':
+            px_a = np.array(list([x.colour for x in y] for y in self.pixels))
+            return px_a
+        elif type == 'list':
+            px_l = list([x.colour for x in y] for y in self.pixels)
+            return px_l
+
+    def pixel_art_surf(self):
+        px_surf = pygame.pixelcopy.make_surface(self.pixel_art_array('array'))
+        px_surf = pygame.transform.rotate(px_surf, 270)
+        px_surf = pygame.transform.flip(px_surf, flip_x=True, flip_y=False)
+        return px_surf
+
+    def export(self):
+        export_surf = self.pixel_art_surf()
+        pygame.image.save(export_surf,
+                          fd.asksaveasfilename(confirmoverwrite=True, filetypes=(('Bitmap Image', '*.bmp'), ('PNG Image', '*.png'), ('JPEG Image', '*.jpg')), initialfile='image.bmp'))
+        del export_surf
+
+    def save(self):
+        save_list = self.pixel_art_array('list')
+        with open(fd.asksaveasfilename(confirmoverwrite=True, filetypes=(("SAV File", "*.sav"),), initialfile='image.sav'), 'wb') as f:
+            pickle.dump(save_list, f)
+
+    def load(self):
+        with open(fd.askopenfilename(filetypes=(("SAV File", "*.sav"),), initialfile='image.sav'), 'rb') as f:
+            colour_list = pickle.load(f)
+            new_pixels = [[x for x in range(64)] for y in range(64)]
+            for y, row in enumerate(colour_list):
+                for x, colour in enumerate(row):
+                    new_pixels[y][x] = Pixel(colour, 8, 8)
+                    new_pixels[y][x].rect.x = 10 + (x * 8)
+                    new_pixels[y][x].rect.y = 10 + (y * 8)
+            self.pixels = new_pixels
+
+
+
+
 
 
 class Pixel(Sprite):
@@ -111,7 +163,6 @@ class PaletteColour(Sprite):
                     pal.draw_palette()
 
 
-
 class Palette(Sprite):
     def _get_palette(self):
         return self._current_palette
@@ -166,17 +217,62 @@ class PalTool(Sprite):
             print(pal.current_palette)
 
 
-pixels = [[x for x in range(64)] for y in range(64)]
-for x in range(64):
-    for y in range(64):
-        pixels[x][y] = Pixel(RED, 8, 8)
-        pixels[x][y].rect.x = 10 + (x * 8)
-        pixels[x][y].rect.y = 10 + (y * 8)
+class SaveTool(Sprite):
+    def __init__(self, colour=(0, 0, 0), height=30, width=30):
+        super().__init__(colour, height, width)
+        saveicon = pygame.image.load('saveicon.png')
+        saveicon.convert_alpha()
+        self.image = saveicon
+        self.rect.x = 402
+        self.rect.y = 562
 
+    def update(self):
+        screen.blit(self.image, self.rect)
+        if self.rect.collidepoint(pygame.mouse.get_pos()) or pygame.key.get_pressed()[K_s]:
+            if pygame.mouse.get_pressed()[0] or pygame.key.get_pressed()[K_s]:
+                px_art.save()
+
+
+class LoadTool(Sprite):
+    def __init__(self, colour=(0, 0, 0), height=30, width=30):
+        super().__init__(colour, height, width)
+        loadicon = pygame.image.load('loadicon.png')
+        loadicon.convert_alpha()
+        self.image = loadicon
+        self.rect.x = 432
+        self.rect.y = 562
+
+    def update(self):
+        screen.blit(self.image, self.rect)
+        if self.rect.collidepoint(pygame.mouse.get_pos()) or pygame.key.get_pressed()[K_l]:
+            if pygame.mouse.get_pressed()[0] or pygame.key.get_pressed()[K_l]:
+                px_art.load()
+
+
+class ExportTool(Sprite):
+    def __init__(self, colour=(0, 0, 0), height=30, width=30):
+        super().__init__(colour, height, width)
+        exporticon = pygame.image.load('exporticon.png')
+        exporticon.convert_alpha()
+        self.image = exporticon
+        self.rect.x = 462
+        self.rect.y = 562
+
+    def update(self):
+        screen.blit(self.image, self.rect)
+        if self.rect.collidepoint(pygame.mouse.get_pos()) or pygame.key.get_pressed()[K_x]:
+            if pygame.mouse.get_pressed()[0] or pygame.key.get_pressed()[K_x]:
+                px_art.export()
+
+
+px_art = PixelArt()
 cur = Brush()
 pal = Palette()
 pal.draw_palette()
 PalTool()
+SaveTool()
+LoadTool()
+ExportTool()
 running = True
 while running:
     clock.tick(60)
