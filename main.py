@@ -1,11 +1,12 @@
 # add a grid too!
 # rewrite highlights as an object, also pixels grid - consistency
-
+# crashes when closing colour window without selecting colour, also save windows
 import pygame
 from tkinter.colorchooser import askcolor
 import tkinter.filedialog as fd
 import numpy as np
 import pickle
+from PIL import Image
 from pygame.locals import *
 
 pygame.init()
@@ -17,7 +18,7 @@ pygame.display.set_caption('Pixel Art')
 screen.fill(BACKGROUND_COLOUR)
 pygame.display.flip()
 
-RED = (255, 0, 0)
+TRANSPARENT = (85, 85, 85)
 BLUE = (0, 0, 255)
 TINT = (100, 100, 100)
 sprite_list = pygame.sprite.Group()
@@ -59,33 +60,90 @@ class Sprite(pygame.sprite.Sprite):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
 
 
-class PixelArt():
+def increment_rgb():
+    r = g = b = 0
+    while (r, g, b) != (255, 255, 255):
+        yield r, g, b
+        if r == g == b:
+            r += 1
+        elif r > g == b:
+            g += 1
+        else:
+            b += 1
+
+
+class PixelArt:
     def __init__(self):
         self.pixels = [[x for x in range(64)] for y in range(64)]
         for x in range(64):
             for y in range(64):
-                self.pixels[y][x] = Pixel(RED, 8, 8)
+                self.pixels[y][x] = Pixel(TRANSPARENT, 8, 8)
                 self.pixels[y][x].rect.x = 10 + (x * 8)
                 self.pixels[y][x].rect.y = 10 + (y * 8)
 
-    def pixel_art_array(self, type):
-        if type == 'array':
-            px_a = np.array(list([x.colour for x in y] for y in self.pixels))
-            return px_a
-        elif type == 'list':
-            px_l = list([x.colour for x in y] for y in self.pixels)
-            return px_l
+    def key_transparent(self):
+        opaque_l = list()
+        for y in self.pixels:
+            for x in y:
+                if x.transparent:
+                    continue
+                else:
+                    opaque_l.append(x.colour)
+
+        key_found = False
+        while not key_found:
+            for c in increment_rgb():
+                if c not in opaque_l:
+                    key = c
+                    key_found = True
+                    break
+
+        save_pixels = [[x for x in range(64)] for y in range(64)]
+        for i, y in enumerate(self.pixels):
+            for j, x in enumerate(y):
+                if x.transparent:
+                    save_pixels[i][j] = key
+                else:
+                    save_pixels[i][j] = x.colour
+        return save_pixels, key
+
+    def pixel_art_array(self, is_array=False):
+        px_key = self.key_transparent()
+        if not is_array:
+            return px_key
+        else:
+            px_a = np.array(px_key[0])
+            return_a = (px_a, px_key[1])
+            return return_a
 
     def pixel_art_surf(self):
-        px_surf = pygame.pixelcopy.make_surface(self.pixel_art_array('array'))
+        px_alpha = self.pixel_art_array(is_array=True)
+        px_array = px_alpha[0]
+        px_surf = pygame.pixelcopy.make_surface(px_array)
         px_surf = pygame.transform.rotate(px_surf, 270)
         px_surf = pygame.transform.flip(px_surf, flip_x=True, flip_y=False)
-        return px_surf
+        # px_surf.set_colorkey(px_alpha[1])
+        # px_surf.convert_alpha()
+        # pgpx_array = pygame.PixelArray(px_surf)
+        # pgpx_array.replace(px_alpha[1], pygame.Color(0, 0, 0, 0))
+        # px_surf = pgpx_array.make_surface()
+        return px_surf, px_alpha[1]
+
+    def convert_to_img(self):
+        px_alpha = self.pixel_art_surf()
+        surf_bytes = pygame.image.tobytes(px_alpha[0], 'RGBA')
+        image = Image.frombytes('RGBA', (64, 64), surf_bytes)
+        array = np.array(image, dtype=np.ubyte)
+        mask = (array[:, :, :3] == px_alpha[1]).all(axis=2)
+        alpha = np.where(mask, 0, 255)
+        array[:, :, -1] = alpha
+        return_img = Image.fromarray(np.ubyte(array))
+        return return_img
 
     def export(self):
-        export_surf = self.pixel_art_surf()
-        pygame.image.save(export_surf,
-                          fd.asksaveasfilename(confirmoverwrite=True, filetypes=(('Bitmap Image', '*.bmp'), ('PNG Image', '*.png'), ('JPEG Image', '*.jpg')), initialfile='image.bmp'))
+        export_surf = self.convert_to_img()
+        file_ext = (('Bitmap Image', '*.bmp'), ('PNG Image', '*.png'), ('JPEG Image', '*.jpg'))
+        export_surf.save(fd.asksaveasfilename(confirmoverwrite=True, filetypes=file_ext, initialfile='image', defaultextension=file_ext))
         del export_surf
 
     def save(self):
@@ -105,15 +163,12 @@ class PixelArt():
             self.pixels = new_pixels
 
 
-
-
-
-
 class Pixel(Sprite):
     def __init__(self, colour=(0, 0, 0), height=0, width=0):
         super().__init__(colour, height, width)
         self.is_active = False
         self.highlight = None
+        self.transparent = True
 
     def update(self):
         self.is_active = True if self.rect.collidepoint(pygame.mouse.get_pos()) else False
@@ -128,6 +183,7 @@ class Pixel(Sprite):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
                 self.colour = cur.current_colour
+                self.transparent = False
                 self.highlight = None
 
 
