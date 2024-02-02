@@ -108,10 +108,10 @@ class PixelArt:
         return save_pixels, key
 
     def pixel_art_array(self, is_array=False):
-        px_key = self.key_transparent()
         if not is_array:
-            return px_key
+            return self.key_transparent()
         else:
+            px_key = self.key_transparent()
             px_a = np.array(px_key[0])
             return_a = (px_a, px_key[1])
             return return_a
@@ -122,11 +122,6 @@ class PixelArt:
         px_surf = pygame.pixelcopy.make_surface(px_array)
         px_surf = pygame.transform.rotate(px_surf, 270)
         px_surf = pygame.transform.flip(px_surf, flip_x=True, flip_y=False)
-        # px_surf.set_colorkey(px_alpha[1])
-        # px_surf.convert_alpha()
-        # pgpx_array = pygame.PixelArray(px_surf)
-        # pgpx_array.replace(px_alpha[1], pygame.Color(0, 0, 0, 0))
-        # px_surf = pgpx_array.make_surface()
         return px_surf, px_alpha[1]
 
     def convert_to_img(self):
@@ -143,24 +138,39 @@ class PixelArt:
     def export(self):
         export_surf = self.convert_to_img()
         file_ext = (('Bitmap Image', '*.bmp'), ('PNG Image', '*.png'), ('JPEG Image', '*.jpg'))
-        export_surf.save(fd.asksaveasfilename(confirmoverwrite=True, filetypes=file_ext, initialfile='image', defaultextension=file_ext))
+        try:
+            export_surf.save(fd.asksaveasfilename(confirmoverwrite=True, filetypes=file_ext, initialfile='image', defaultextension=file_ext))
+        except FileNotFoundError:
+            pass
         del export_surf
 
     def save(self):
-        save_list = self.pixel_art_array('list')
-        with open(fd.asksaveasfilename(confirmoverwrite=True, filetypes=(("SAV File", "*.sav"),), initialfile='image.sav'), 'wb') as f:
-            pickle.dump(save_list, f)
+        save_list = self.pixel_art_array()
+        try:
+            with open(fd.asksaveasfilename(confirmoverwrite=True, filetypes=(("SAV File", "*.sav"),), initialfile='image.sav', defaultextension='*.sav'), 'wb') as f:
+                pickle.dump(save_list, f)
+        except FileNotFoundError:
+            pass
 
     def load(self):
-        with open(fd.askopenfilename(filetypes=(("SAV File", "*.sav"),), initialfile='image.sav'), 'rb') as f:
-            colour_list = pickle.load(f)
-            new_pixels = [[x for x in range(64)] for y in range(64)]
-            for y, row in enumerate(colour_list):
-                for x, colour in enumerate(row):
-                    new_pixels[y][x] = Pixel(colour, 8, 8)
-                    new_pixels[y][x].rect.x = 10 + (x * 8)
-                    new_pixels[y][x].rect.y = 10 + (y * 8)
-            self.pixels = new_pixels
+        try:
+            with open(fd.askopenfilename(filetypes=(("SAV File", "*.sav"),), initialfile='image.sav', defaultextension='*.sav'), 'rb') as f:
+                colour_list = pickle.load(f)
+                print(type(colour_list))
+                print(type(colour_list[0]), type(colour_list[1]))
+                new_pixels = [[x for x in range(64)] for y in range(64)]
+                for y, row in enumerate(colour_list[0]):
+                    for x, colour in enumerate(row):
+                        new_pixels[y][x] = Pixel(colour, 8, 8)
+                        new_pixels[y][x].rect.x = 10 + (x * 8)
+                        new_pixels[y][x].rect.y = 10 + (y * 8)
+                        if colour == colour_list[1]:
+                            new_pixels[y][x].colour = (85, 85, 85)
+                        else:
+                            new_pixels[y][x].transparent = False
+                self.pixels = new_pixels
+        except FileNotFoundError:
+            pass
 
 
 class Pixel(Sprite):
@@ -182,8 +192,11 @@ class Pixel(Sprite):
         pygame.draw.rect(self.image, self.colour, pygame.Rect(0, 0, self.width, self.height))
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             if pygame.mouse.get_pressed()[0]:
+                if eraser.is_active:
+                    self.transparent = True
+                else:
+                    self.transparent = False
                 self.colour = cur.current_colour
-                self.transparent = False
                 self.highlight = None
 
 
@@ -268,9 +281,37 @@ class PalTool(Sprite):
                     new_pal.pop(-1)
                 pal.current_palette = tuple(new_pal)
                 pal.draw_palette()
-                cur.current_colour = picked_colour
+                if eraser.is_active:
+                    eraser.current_colour = picked_colour
+                else:
+                    cur.current_colour = picked_colour
         if pygame.key.get_pressed()[K_d]:
             print(pal.current_palette)
+
+
+class EraserTool(Sprite):
+    def __init__(self, colour=(0, 0, 0), height=30, width=30):
+        super().__init__(colour, height, width)
+        erasericon = pygame.image.load('erasericon.png')
+        erasericon.convert_alpha()
+        self.image = erasericon
+        self.rect.x = 40
+        self.rect.y = 562
+        self.is_active = False
+        self.current_colour = cur.current_colour
+
+    def update(self):
+        screen.blit(self.image, self.rect)
+
+    def button_pressed(self):
+        print(True)
+        if self.is_active:
+            self.is_active = False
+            cur.current_colour = self.current_colour
+        else:
+            self.is_active = True
+            self.current_colour = cur.current_colour
+            cur.current_colour = TRANSPARENT
 
 
 class SaveTool(Sprite):
@@ -329,6 +370,7 @@ PalTool()
 SaveTool()
 LoadTool()
 ExportTool()
+eraser = EraserTool()
 running = True
 while running:
     clock.tick(60)
@@ -336,6 +378,12 @@ while running:
     for event in events:
         if event.type == pygame.QUIT:
             running = False
+        elif eraser.rect.collidepoint(pygame.mouse.get_pos()):
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                eraser.button_pressed()
+        elif event.type == pygame.KEYDOWN:
+            if pygame.key.get_pressed()[K_e]:
+                eraser.button_pressed()
 
     sprite_list.update()
     sprite_list.draw(screen)
